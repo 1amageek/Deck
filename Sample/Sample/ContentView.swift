@@ -17,7 +17,10 @@ struct Data: Identifiable {
     }
 }
 
+
 struct ContentView: View {
+
+    var data: [Data] = []
 
     @State var index: Int = 0
 
@@ -31,24 +34,13 @@ struct ContentView: View {
 
         VStack {
 
-            DeckStack(
-                [
-                    Data(),
-                    Data(),
-                    Data(),
-                    Data(),
-                    Data(),
-                    Data(),
-                    Data(),
-                    Data()
-                ],
-                index: $index,
-                onChange: { state in
-                    self.progress = state.progress
-//                    self.progress = state.progress
-                },
+            DeckStack(data, index: $index,
                 onEnd: { state, done, cancel in
-                    done()
+                    if state.isJudged {
+                        done()
+                    } else {
+                        cancel()
+                    }
                 }
             ) { data in
                 VStack {
@@ -60,7 +52,11 @@ struct ContentView: View {
                 .clipped()
                 .shadow(radius: 8)
             }
-            .environmentObject(DeckContext<Data.ID>())
+            .onChange { state in
+                self.direction = state.direction
+                self.progress = state.progress
+            }
+
             Text("\(progress)")
             Text("\(swipeProgress?.estimateProgress ?? 0)")
             Text("\(direction.label)")
@@ -68,13 +64,12 @@ struct ContentView: View {
             HStack {
                 Group {
                     Button(action: {
-
+                        
                     }, label: {
                         Image(systemName: "arrow.turn.up.right")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                     })
-
                     Button(action: {
 
                     }, label: {
@@ -100,6 +95,6 @@ struct ContentView: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+        ContentView(data: [Data()])
     }
 }

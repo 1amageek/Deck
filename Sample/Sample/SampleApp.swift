@@ -11,7 +11,7 @@ import SwiftUI
 struct SampleApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(data: (0..<100).map { Data(id: "\($0)") })
         }
     }
 }

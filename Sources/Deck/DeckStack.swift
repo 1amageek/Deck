@@ -131,30 +131,30 @@ public struct CardState {
     }
 }
 
-
-public class DeckContext<ID: Hashable>: ObservableObject {
+public class DeckState<ID: Hashable>: ObservableObject {
 
     @Published var properties: [ID: CardState] = [:]
 
-    public var option: Option
+}
 
-    public init(option: Option = Option()) {
+class DeckContext<ID: Hashable>: ObservableObject {
+    var option: Option
+    var onChange: ((DeckDragGestureState<ID>) -> Void)?
+
+    init(option: Option) {
         self.option = option
     }
-
 }
 
 public struct DeckStack<Data: Identifiable, Content: View>: View {
 
-//    @StateObject var context: DeckContext<Data.ID>
+    @StateObject var state: DeckState<Data.ID> = DeckState()
 
-    @EnvironmentObject var context: DeckContext<Data.ID>
+    @ObservedObject var context: DeckContext<Data.ID>
 
     @Binding public var index: Int
 
     private var data: [Data] = []
-
-    private var onChange: ((DeckDragGestureState<Data.ID>) -> Void)?
 
     private var onEnd: (DeckDragGestureState<Data.ID>, () -> Void, () -> Void) -> Void
 
@@ -164,14 +164,12 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
         _ data: [Data],
         index: Binding<Int>,
         option: Option = Option(),
-        onChange: ((DeckDragGestureState<Data.ID>) -> Void)? = nil,
         onEnd: @escaping (DeckDragGestureState<Data.ID>, () -> Void, () -> Void) -> Void,
         @ViewBuilder content: @escaping (Data) -> Content
     ) {
-//        self._context = StateObject(wrappedValue: DeckContext<Data.ID>(option: option))
+        self._context = ObservedObject(initialValue: DeckContext<Data.ID>(option: option))
         self.data = data
         self._index = index
-        self.onChange = onChange
         self.onEnd = onEnd
         self.content = content
     }
@@ -191,22 +189,27 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
                 DeckStackWrapperView(
                     id: data.id,
                     index: $index,
-//                    context: context,
-                    onChange: onChange,
                     onEnd: onEnd
                 ) {
                     content(data)
                 }
+                .environmentObject(state)
+                .environmentObject(context)
                 .onAppear {
-                    context.properties[data.id] = CardState()
+                    state.properties[data.id] = CardState()
                 }
                 .onDisappear {
-                    if let index = context.properties.firstIndex(where: { $0.key == data.id }) {
-                        context.properties.remove(at: index)
+                    if let index = state.properties.firstIndex(where: { $0.key == data.id }) {
+                        state.properties.remove(at: index)
                     }
                 }
             }
         }
+    }
+
+    public func onChange(perform: @escaping (DeckDragGestureState<Data.ID>) -> Void) -> Self {
+        self.context.onChange = perform
+        return self
     }
 
     struct DeckStackWrapperView<Content: View>: View {
@@ -215,11 +218,9 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
 
         @Binding public var index: Int
 
-//        var context: DeckContext<Data.ID>
-
+        @EnvironmentObject var state: DeckState<Data.ID>
+        
         @EnvironmentObject var context: DeckContext<Data.ID>
-
-        private var onChange: ((DeckDragGestureState<Data.ID>) -> Void)?
 
         private var onEnd: (DeckDragGestureState<Data.ID>, () -> Void, () -> Void) -> Void
 
@@ -228,15 +229,11 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
         init(
             id: Data.ID,
             index: Binding<Int>,
-//            context: DeckContext<Data.ID>,
-            onChange: ((DeckDragGestureState<Data.ID>) -> Void)?,
             onEnd: @escaping (DeckDragGestureState<Data.ID>, () -> Void, () -> Void) -> Void,
             @ViewBuilder content: @escaping () -> Content
         ) {
             self.id = id
             self._index = index
-//            self.context = context
-            self.onChange = onChange
             self.onEnd = onEnd
             self.content = content
         }
@@ -284,9 +281,9 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
             )
         }
 
-        var offset: CGSize { context.properties[id]?.offset ?? .zero }
+        var offset: CGSize { state.properties[id]?.offset ?? .zero }
 
-        var angle: Angle { context.properties[id]?.angle ?? .zero }
+        var angle: Angle { state.properties[id]?.angle ?? .zero }
 
         var body: some View {
             Group {
@@ -298,35 +295,37 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
                 DragGesture()
                     .onChanged({ value in
                         let swipeProgress: DeckDragGestureState = self.swipeProgress(from: value, isTracking: true)
-                        self.context.properties[id]?.offset = swipeProgress.translation
-                        self.context.properties[id]?.angle = swipeProgress.angle
-                        onChange?(swipeProgress)
+                        self.state.properties[id]?.offset = swipeProgress.translation
+                        self.state.properties[id]?.angle = swipeProgress.angle
+                        self.context.onChange?(swipeProgress)
                     })
                     .onEnded({ value in
                         let swipeProgress: DeckDragGestureState = self.swipeProgress(from: value)
                         if swipeProgress.direction == .none {
-                            withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.65, blendDuration: 0.8)) {
-                                self.context.properties[id]?.offset = .zero
-                                self.context.properties[id]?.angle = .zero
+                            withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
+                                self.state.properties[id]?.offset = .zero
+                                self.state.properties[id]?.angle = .zero
                             }
                             return
                         }
 
                         let doneHandler = {
-                            withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.65, blendDuration: 0.8)) {
-                                self.context.properties[id]?.offset = CGSize(
+                            withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
+                                self.state.properties[id]?.offset = CGSize(
                                     width: swipeProgress.direction.destination.x,
                                     height: swipeProgress.direction.destination.y
                                 )
-                                self.context.properties[id]?.angle = .zero
+                                self.state.properties[id]?.angle = .zero
+                            }
+                            withAnimation {
                                 self.$index.wrappedValue += 1
                             }
                         }
 
                         let cancelHandler = {
-                            withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.65, blendDuration: 0.8)) {
-                                self.context.properties[id]?.offset = .zero
-                                self.context.properties[id]?.angle = .zero
+                            withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
+                                self.state.properties[id]?.offset = .zero
+                                self.state.properties[id]?.angle = .zero
                             }
                         }
                         
@@ -363,9 +362,6 @@ struct DeckView_Previews: PreviewProvider {
                 DeckStack(
                     data,
                     index: $index,
-                    onChange: { _ in
-
-                    },
                     onEnd: { _,_,_  in
 
                     }
