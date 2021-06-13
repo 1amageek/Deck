@@ -23,17 +23,38 @@ struct ContentView: View {
 
     @State var index: Int = 0
 
-    @State var swipeProgress: SwipeProrgress<Data.ID>?
+    @State var swipeProgress: DeckDragGestureState<Data.ID>?
+
+    @State var progress: CGFloat = 0
+
+    @State var direction: Direction = .none
 
     var body: some View {
+
         VStack {
-            DeckView(index: $index,
-                     swipeProgress: $swipeProgress,
-                     data: self.data) { data in
+
+            DeckStack(
+                [
+                    Data(),
+                    Data(),
+                    Data(),
+                    Data(),
+                    Data(),
+                    Data(),
+                    Data(),
+                    Data()
+                ],
+                index: $index,
+                onChange: { state in
+                    self.progress = state.progress
+//                    self.progress = state.progress
+                },
+                onEnd: { state, done, cancel in
+                    done()
+                }
+            ) { data in
                 VStack {
                     Text("\(data.id)")
-                        .foregroundColor(Color.blue)
-                    Text("\(self.data.firstIndex(where: { data.id == $0.id }) ?? 0)")
                         .foregroundColor(Color.blue)
                 }
                 .frame(width: 320, height: 420, alignment: .center)
@@ -41,10 +62,9 @@ struct ContentView: View {
                 .clipped()
                 .shadow(radius: 8)
             }
-            Text("\(swipeProgress?.progress ?? 0)")
+            Text("\(progress)")
             Text("\(swipeProgress?.estimateProgress ?? 0)")
-            Text("\(swipeProgress?.direction.label ?? Direction.none.label)")
-
+            Text("\(direction.label)")
 
             HStack {
                 Group {
