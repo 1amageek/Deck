@@ -104,7 +104,7 @@ public struct Option {
     public var judgmentThreshold: CGFloat
 
     public init(
-        numberOfVisibleCards: Int = 3,
+        numberOfVisibleCards: Int = 10,
         maximumRotationOfCard: Double = 15,
         allowedDirections: AllowedDirections = [.horizontal, .vertical],
         judgmentThreshold: CGFloat = 180
@@ -137,9 +137,10 @@ public class DeckState<ID: Hashable>: ObservableObject {
 
 }
 
-class DeckContext<ID: Hashable>: ObservableObject {
+class DeckStackContext<ID: Hashable>: ObservableObject {
     var option: Option
     var onChange: ((DeckDragGestureState<ID>) -> Void)?
+    var registerUndo: ((DeckState<ID>, DeckDragGestureState<ID>, _: @escaping () -> Void) -> Void)?
 
     init(option: Option) {
         self.option = option
@@ -150,7 +151,7 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
 
     @StateObject var state: DeckState<Data.ID> = DeckState()
 
-    @ObservedObject var context: DeckContext<Data.ID>
+    @ObservedObject var context: DeckStackContext<Data.ID>
 
     @Binding public var index: Int
 
@@ -167,7 +168,7 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
         onEnd: @escaping (DeckDragGestureState<Data.ID>, () -> Void, () -> Void) -> Void,
         @ViewBuilder content: @escaping (Data) -> Content
     ) {
-        self._context = ObservedObject(initialValue: DeckContext<Data.ID>(option: option))
+        self._context = ObservedObject(initialValue: DeckStackContext<Data.ID>(option: option))
         self.data = data
         self._index = index
         self.onEnd = onEnd
@@ -193,15 +194,17 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
                 ) {
                     content(data)
                 }
+                .zIndex(Double(visibleStackData.firstIndex(where: { $0.id == data.id }) ?? 0))
                 .environmentObject(state)
                 .environmentObject(context)
                 .onAppear {
                     state.properties[data.id] = CardState()
                 }
                 .onDisappear {
-                    if let index = state.properties.firstIndex(where: { $0.key == data.id }) {
-                        state.properties.remove(at: index)
-                    }
+                    print("onDisappear", index, data.id)
+//                    if let index = state.properties.firstIndex(where: { $0.key == data.id }) {
+//                        state.properties.remove(at: index)
+//                    }
                 }
             }
         }
@@ -212,15 +215,22 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
         return self
     }
 
+    public func registerUndo(handler: @escaping (DeckState<Data.ID>, DeckDragGestureState<Data.ID>, _: @escaping () -> Void) -> Void) -> Self {
+        self.context.registerUndo = handler
+        return self
+    }
+
     struct DeckStackWrapperView<Content: View>: View {
 
         var id: Data.ID
 
         @Binding public var index: Int
 
+        @EnvironmentObject var deckContext: DeckContext
+
         @EnvironmentObject var state: DeckState<Data.ID>
         
-        @EnvironmentObject var context: DeckContext<Data.ID>
+        @EnvironmentObject var deckStackContext: DeckStackContext<Data.ID>
 
         private var onEnd: (DeckDragGestureState<Data.ID>, () -> Void, () -> Void) -> Void
 
@@ -247,7 +257,7 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
                 case (let vertical, let horizontal) where abs(vertical) < abs(horizontal) && horizontal < 0: direction = .left
                 default: direction = .none
             }
-            if context.option.allowedDirections.contains(AllowedDirections(rawValue: 1 << direction.rawValue)) {
+            if deckStackContext.option.allowedDirections.contains(AllowedDirections(rawValue: 1 << direction.rawValue)) {
                 return direction
             }
             return .none
@@ -255,12 +265,12 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
 
         private func progress(from translation: CGSize) -> CGFloat {
             let translationAbs: CGFloat = max(abs(translation.width), abs(translation.height))
-            return min(translationAbs / context.option.judgmentThreshold, 1.0)
+            return min(translationAbs / deckStackContext.option.judgmentThreshold, 1.0)
         }
 
         private func estimateProgress(from predictedEndTranslation: CGSize) -> CGFloat {
             let predictedEndTranslationAbs: CGFloat = max(abs(predictedEndTranslation.width), abs(predictedEndTranslation.height))
-            return min(predictedEndTranslationAbs / context.option.judgmentThreshold, 1.0)
+            return min(predictedEndTranslationAbs / deckStackContext.option.judgmentThreshold, 1.0)
         }
 
         private func swipeProgress(from value: DragGesture.Value, isTracking: Bool = false) -> DeckDragGestureState<Data.ID> {
@@ -268,7 +278,7 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
             let progress: CGFloat = self.progress(from: value.translation)
             let estimateProgress: CGFloat = self.estimateProgress(from: value.predictedEndTranslation)
             let offset = value.translation
-            let angle = Angle(degrees: Double(min(value.translation.width / context.option.judgmentThreshold, 1.0)) * context.option.maximumRotationOfCard)
+            let angle = Angle(degrees: Double(min(value.translation.width / deckStackContext.option.judgmentThreshold, 1.0)) * deckStackContext.option.maximumRotationOfCard)
             return DeckDragGestureState(
                 id: id,
                 direction: direction,
@@ -290,6 +300,9 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
                 content()
                     .offset(offset)
                     .rotationEffect(angle)
+                    .onAppear {
+                        
+                    }
             }
             .gesture(
                 DragGesture()
@@ -297,7 +310,7 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
                         let swipeProgress: DeckDragGestureState = self.swipeProgress(from: value, isTracking: true)
                         self.state.properties[id]?.offset = swipeProgress.translation
                         self.state.properties[id]?.angle = swipeProgress.angle
-                        self.context.onChange?(swipeProgress)
+                        self.deckStackContext.onChange?(swipeProgress)
                     })
                     .onEnded({ value in
                         let swipeProgress: DeckDragGestureState = self.swipeProgress(from: value)
@@ -328,7 +341,19 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
                                 self.state.properties[id]?.angle = .zero
                             }
                         }
-                        
+
+                        let undoHandler = {
+                            print("Undo", id, index, self.state.properties[id])
+                            withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
+                                self.state.properties[id]?.offset = .zero
+                                self.state.properties[id]?.angle = .zero
+                            }
+                            withAnimation {
+                                self.$index.wrappedValue -= 1
+                            }
+                        }
+
+                        self.deckStackContext.registerUndo?(self.state, swipeProgress, undoHandler)
                         onEnd(swipeProgress, doneHandler, cancelHandler)
                     })
             )

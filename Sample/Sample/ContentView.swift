@@ -17,10 +17,15 @@ struct Data: Identifiable {
     }
 }
 
+class UndoManager: ObservableObject {
+    var undo: (() -> Void)?
+}
 
 struct ContentView: View {
 
     var data: [Data] = []
+
+    @ObservedObject var undoManager: UndoManager = UndoManager()
 
     @State var index: Int = 0
 
@@ -32,63 +37,70 @@ struct ContentView: View {
 
     var body: some View {
 
-        VStack {
+        DeckProvider { context in
+            VStack {
 
-            DeckStack(data, index: $index,
-                onEnd: { state, done, cancel in
-                    if state.isJudged {
-                        done()
-                    } else {
-                        cancel()
+                DeckStack(data, index: $index,
+                          onEnd: { state, done, cancel in
+                            if state.isJudged {
+                                done()
+                            } else {
+                                cancel()
+                            }
+                          }
+                ) { data in
+                    VStack {
+                        Text("\(data.id)")
+                            .foregroundColor(Color.blue)
                     }
+                    .frame(width: 320, height: 420, alignment: .center)
+                    .background(Color.white)
+                    .clipped()
+                    .shadow(radius: 8)
                 }
-            ) { data in
-                VStack {
-                    Text("\(data.id)")
-                        .foregroundColor(Color.blue)
+                .onChange { state in
+                    self.direction = state.direction
+                    self.progress = state.progress
                 }
-                .frame(width: 320, height: 420, alignment: .center)
-                .background(Color.white)
-                .clipped()
-                .shadow(radius: 8)
-            }
-            .onChange { state in
-                self.direction = state.direction
-                self.progress = state.progress
-            }
-
-            Text("\(progress)")
-            Text("\(swipeProgress?.estimateProgress ?? 0)")
-            Text("\(direction.label)")
-
-            HStack {
-                Group {
-                    Button(action: {
-                        
-                    }, label: {
-                        Image(systemName: "arrow.turn.up.right")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                    })
-                    Button(action: {
-
-                    }, label: {
-                        Image(systemName: "xmark")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                    })
-
-                    Button(action: {
-
-                    }, label: {
-                        Image(systemName: "heart.fill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                    })
+                .registerUndo { _, _, cancel in
+                    print("register", cancel)
+                    self.undoManager.undo = cancel
                 }
-                .frame(width: 44, height: 44, alignment: .center)
-            }
 
+                Text("\(progress)")
+                Text("\(swipeProgress?.estimateProgress ?? 0)")
+                Text("\(direction.label)")
+
+                HStack {
+                    Group {
+                        Button(action: {
+                            print(self.undoManager.undo)
+                            self.undoManager.undo?()
+                        }, label: {
+                            Image(systemName: "arrow.turn.up.right")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        })
+                        Button(action: {
+
+                        }, label: {
+                            Image(systemName: "xmark")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        })
+
+                        Button(action: {
+
+                        }, label: {
+                            Image(systemName: "heart.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        })
+                    }
+                    .frame(width: 44, height: 44, alignment: .center)
+                }
+
+            }
         }
     }
 }
