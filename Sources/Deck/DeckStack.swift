@@ -72,10 +72,6 @@ public struct DeckDragGestureState<ID: Hashable> {
 
     public var isTracking: Bool
 
-    var doneHandler: (() -> Void)?
-
-    var cancelHandler: (() -> Void)?
-
     public init(
         id: ID,
         direction: Direction = .none,
@@ -95,10 +91,6 @@ public struct DeckDragGestureState<ID: Hashable> {
         self.angle = angle
         self.isTracking = isTracking
     }
-
-    public func done() { doneHandler?() }
-
-    public func cancel() { cancelHandler?() }
 }
 
 public struct Option {
@@ -140,13 +132,13 @@ public struct CardState {
 }
 
 
-class DeckContext<ID: Hashable>: ObservableObject {
+public class DeckContext<ID: Hashable>: ObservableObject {
 
     @Published var properties: [ID: CardState] = [:]
 
-    var option: Option
+    public var option: Option
 
-    init(option: Option) {
+    public init(option: Option = Option()) {
         self.option = option
     }
 
@@ -154,7 +146,9 @@ class DeckContext<ID: Hashable>: ObservableObject {
 
 public struct DeckStack<Data: Identifiable, Content: View>: View {
 
-    @StateObject var context: DeckContext<Data.ID>
+//    @StateObject var context: DeckContext<Data.ID>
+
+    @EnvironmentObject var context: DeckContext<Data.ID>
 
     @Binding public var index: Int
 
@@ -174,7 +168,7 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
         onEnd: @escaping (DeckDragGestureState<Data.ID>, () -> Void, () -> Void) -> Void,
         @ViewBuilder content: @escaping (Data) -> Content
     ) {
-        self._context = StateObject(wrappedValue: DeckContext<Data.ID>(option: option))
+//        self._context = StateObject(wrappedValue: DeckContext<Data.ID>(option: option))
         self.data = data
         self._index = index
         self.onChange = onChange
@@ -197,7 +191,7 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
                 DeckStackWrapperView(
                     id: data.id,
                     index: $index,
-                    context: context,
+//                    context: context,
                     onChange: onChange,
                     onEnd: onEnd
                 ) {
@@ -221,7 +215,9 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
 
         @Binding public var index: Int
 
-        var context: DeckContext<Data.ID>
+//        var context: DeckContext<Data.ID>
+
+        @EnvironmentObject var context: DeckContext<Data.ID>
 
         private var onChange: ((DeckDragGestureState<Data.ID>) -> Void)?
 
@@ -232,14 +228,14 @@ public struct DeckStack<Data: Identifiable, Content: View>: View {
         init(
             id: Data.ID,
             index: Binding<Int>,
-            context: DeckContext<Data.ID>,
+//            context: DeckContext<Data.ID>,
             onChange: ((DeckDragGestureState<Data.ID>) -> Void)?,
             onEnd: @escaping (DeckDragGestureState<Data.ID>, () -> Void, () -> Void) -> Void,
             @ViewBuilder content: @escaping () -> Content
         ) {
             self.id = id
             self._index = index
-            self.context = context
+//            self.context = context
             self.onChange = onChange
             self.onEnd = onEnd
             self.content = content

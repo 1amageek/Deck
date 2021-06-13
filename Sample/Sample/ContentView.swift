@@ -19,8 +19,6 @@ struct Data: Identifiable {
 
 struct ContentView: View {
 
-    var data: [Data]
-
     @State var index: Int = 0
 
     @State var swipeProgress: DeckDragGestureState<Data.ID>?
@@ -62,6 +60,7 @@ struct ContentView: View {
                 .clipped()
                 .shadow(radius: 8)
             }
+            .environmentObject(DeckContext<Data.ID>())
             Text("\(progress)")
             Text("\(swipeProgress?.estimateProgress ?? 0)")
             Text("\(direction.label)")
@@ -69,10 +68,7 @@ struct ContentView: View {
             HStack {
                 Group {
                     Button(action: {
-                        let data = self.data[index - 1]
-                        withAnimation {
-                            
-                        }
+
                     }, label: {
                         Image(systemName: "arrow.turn.up.right")
                             .resizable()
@@ -104,6 +100,6 @@ struct ContentView: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView(data: [])
+        ContentView()
     }
 }
