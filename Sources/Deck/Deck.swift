@@ -67,7 +67,23 @@ public enum Direction: Int {
 
 public class Deck<Element: Identifiable>: ObservableObject {
 
-    public var data: [Element]
+    public var data: [Element] {
+        didSet(oldValue) {
+            let difference = data.difference(from: oldValue) {  $0.id == $1.id  }
+            for change in difference {
+              switch change {
+              case let .remove(_, element, _):
+                if let index = self.properties.firstIndex(where: { $0.key == element.id }) {
+                    self.properties.remove(at: index)
+                }
+              case let .insert(_, newElement, _):
+                if !self.properties.contains(where: { $0.key == newElement.id }) {
+                    self.properties[newElement.id] = CardProperty()
+                }
+              }
+            }
+        }
+    }
 
     var dragGesture: DeckDragGesture<Element.ID>?
 
