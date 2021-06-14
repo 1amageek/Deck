@@ -50,7 +50,7 @@ struct ContentView: View {
 
     var direction: Direction { gestureState?.direction ?? .none }
 
-    func showShadow(targetID: Data.ID, data: Data) -> Bool {
+    func showShadow(targetID: Data.ID?, data: Data) -> Bool {
         if targetID == data.id {
             return true
         }
@@ -62,7 +62,7 @@ struct ContentView: View {
         return false
     }
 
-    func scale(targetID: Data.ID, data: Data) -> CGFloat {
+    func scale(targetID: Data.ID?, data: Data) -> CGFloat {
         if targetID == data.id {
             return 1
         }

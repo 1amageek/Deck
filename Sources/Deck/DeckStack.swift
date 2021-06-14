@@ -19,7 +19,6 @@ public struct AllowedDirections: OptionSet {
     public static let top: AllowedDirections = AllowedDirections(rawValue: 1 << Direction.top.rawValue)
     public static let right: AllowedDirections  = AllowedDirections(rawValue: 1 << Direction.right.rawValue)
     public static let bottom: AllowedDirections  = AllowedDirections(rawValue: 1 << Direction.bottom.rawValue)
-
     public static let vertical: AllowedDirections  = [.top, .bottom]
     public static let horizontal: AllowedDirections  = [.left, .right]
     public static let all: AllowedDirections  = [.vertical, .horizontal]
@@ -73,12 +72,12 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
 
     private var deck: Deck<Element>
 
-    private var content: (Element, Element.ID) -> Content
+    private var content: (Element, Element.ID?) -> Content
 
     public init(
         _ deck: Deck<Element>,
         option: Option = Option(),
-        @ViewBuilder content: @escaping (Element, Element.ID) -> Content
+        @ViewBuilder content: @escaping (Element, Element.ID?) -> Content
     ) {
         self.deck = deck
         self.option = option
@@ -94,11 +93,18 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
         return Array(deck.data[start..<end].reversed())
     }
 
+    private var targetID: Element.ID? {
+        if deck.index < deck.data.count - 1 {
+            return deck.data[deck.index].id
+        }
+        return nil
+    }
+
     public var body: some View {
         ZStack {
             ForEach(visibleStackData, id: \.id) { data in
                 DeckStackWrapperView(id: data.id, option: option) {
-                    content(data, deck.data[deck.index].id)
+                    content(data, targetID)
                 }
                 .zIndex(Double(visibleStackData.firstIndex(where: { $0.id == data.id }) ?? 0))
                 .environmentObject(deck)
