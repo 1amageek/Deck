@@ -17,89 +17,161 @@ struct Data: Identifiable {
     }
 }
 
-class UndoManager: ObservableObject {
-    var undo: (() -> Void)?
+extension Direction {
+
+    var color: Color {
+        switch self {
+            case .left: return Color.red
+            case .top: return Color.blue
+            case .right: return Color.green
+            default: return Color.clear
+        }
+    }
 }
 
 struct ContentView: View {
 
-    var data: [Data] = []
-
-    @ObservedObject var undoManager: UndoManager = UndoManager()
+    @ObservedObject var deck: Deck = Deck((0..<100).map { Data(id: "\($0)") })
 
     @State var index: Int = 0
 
-    @State var swipeProgress: DeckDragGestureState<Data.ID>?
+    @State var gestureState: DeckDragGestureState?
 
-    @State var progress: CGFloat = 0
+    var progress: CGFloat { gestureState?.progress ?? 0 }
 
-    @State var direction: Direction = .none
+    var direction: Direction { gestureState?.direction ?? .none }
+
+    func showShadow(targetID: Data.ID, data: Data) -> Bool {
+        if targetID == data.id {
+            return true
+        }
+        if deck.index < deck.data.count - 2 {
+            if deck.data[deck.index + 1].id == data.id {
+                return true
+            }
+        }
+        return false
+    }
 
     var body: some View {
 
-        DeckProvider { context in
-            VStack {
+        VStack {
+            DeckStack(deck, option: .allowed(directions: [.left, .top, .right]) ) { data, targetID in
+                ZStack {
 
-                DeckStack(data, index: $index,
-                          onEnd: { state, done, cancel in
-                            if state.isJudged {
-                                done()
-                            } else {
-                                cancel()
+                    if targetID == data.id {
+                        VStack {
+                            Text("\(direction.label.uppercased())")
+                                .foregroundColor(direction.color)
+                                .bold()
+                                .padding(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(direction.color, lineWidth: 3)
+                                )
+                                .opacity(Double(progress))
+                            Spacer()
+                        }
+                        .frame(height: 200)
+                    }
+
+                    Text("\(data.id)")
+                        .foregroundColor(Color.blue)
+
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .background(Color.white)
+                .cornerRadius(8)
+                .clipped()
+                .shadow(color: Color.black.opacity(0.18), radius: showShadow(targetID: targetID, data: data) ? 2 : 0, x: 0.0, y: 0.0)
+                .scaleEffect(targetID == data.id ? 1 : 1 - (0.045 * (1 - progress)) )
+                .padding(8)
+                .onTapGesture {
+                    print("on tap")
+                }
+            }
+            .onGesture(DeckDragGesture()
+                        .onChange { state in
+                            self.gestureState = state
+                        }
+                        .onEnd { state in
+                            withAnimation {
+                                self.gestureState = nil
                             }
-                          }
-                ) { data in
-                    VStack {
-                        Text("\(data.id)")
-                            .foregroundColor(Color.blue)
-                    }
-                    .frame(width: 320, height: 420, alignment: .center)
-                    .background(Color.white)
-                    .clipped()
-                    .shadow(radius: 8)
+                        }
+            )
+            .onJudged { id, direction in
+//                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+//                    deck.back(id: id)
+//                }
+            }
+
+
+            HStack {
+                Group {
+                    Circle()
+                        .stroke(Color.yellow, lineWidth: 1)
+                        .foregroundColor(.white)
+                        .overlay(
+                            Button(action: {
+                                if deck.index > 0 {
+                                    deck.back(id: deck.data[deck.index - 1].id)
+                                }
+                            }, label: {
+                                Image(systemName: "arrow.turn.up.right")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundColor(.yellow)
+                            })
+                            .padding(12)
+                        )
+
+                    Circle()
+                        .stroke(Color.red, lineWidth: 1)
+                        .foregroundColor(.white)
+                        .overlay(
+                            Button(action: {
+                                deck.swipe(to: .left, id: deck.data[deck.index].id)
+                            }, label: {
+                                Image(systemName: "xmark")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundColor(.red)
+                            })
+                            .padding(12)
+                        )
+
+                    Circle()
+                        .stroke(Color.blue, lineWidth: 1)
+                        .foregroundColor(.white)
+                        .overlay(
+                            Button(action: {
+                                deck.swipe(to: .top, id: deck.data[deck.index].id)
+                            }, label: {
+                                Image(systemName: "star.fill")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundColor(.blue)
+                            })
+                            .padding(12)
+                        )
+
+                    Circle()
+                        .stroke(Color.green, lineWidth: 1)
+                        .foregroundColor(.white)
+                        .overlay(
+                            Button(action: {
+                                deck.swipe(to: .right, id: deck.data[deck.index].id)
+                            }, label: {
+                                Image(systemName: "heart.fill")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundColor(.green)
+                            })
+                            .padding(12)
+                        )
                 }
-                .onChange { state in
-                    self.direction = state.direction
-                    self.progress = state.progress
-                }
-                .registerUndo { _, _, cancel in
-                    print("register", cancel)
-                    self.undoManager.undo = cancel
-                }
-
-                Text("\(progress)")
-                Text("\(swipeProgress?.estimateProgress ?? 0)")
-                Text("\(direction.label)")
-
-                HStack {
-                    Group {
-                        Button(action: {
-                            print(self.undoManager.undo)
-                            self.undoManager.undo?()
-                        }, label: {
-                            Image(systemName: "arrow.turn.up.right")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                        })
-                        Button(action: {
-
-                        }, label: {
-                            Image(systemName: "xmark")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                        })
-
-                        Button(action: {
-
-                        }, label: {
-                            Image(systemName: "heart.fill")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                        })
-                    }
-                    .frame(width: 44, height: 44, alignment: .center)
-                }
-
+                .frame(width: 50, height: 50, alignment: .center)
             }
         }
     }
@@ -107,6 +179,6 @@ struct ContentView: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView(data: [Data()])
+        ContentView()
     }
 }
