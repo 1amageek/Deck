@@ -9,14 +9,18 @@ import SwiftUI
 
 public struct CardProperty {
 
+    public var direction: Direction
+
     public var offset: CGSize
 
     public var angle: Angle
 
     public init(
+        direction: Direction = .none,
         offset: CGSize = .zero,
         angle: Angle = .zero
     ) {
+        self.direction = direction
         self.offset = offset
         self.angle = angle
     }
@@ -65,9 +69,11 @@ public class Deck<Element: Identifiable>: ObservableObject {
 
     public var data: [Element]
 
-    var dragGesture: DeckDragGesture?
+    var dragGesture: DeckDragGesture<Element.ID>?
 
     var onJudged: ((Element.ID, Direction) -> Void)?
+
+    var onBack: ((Element.ID, Direction) -> Void)?
 
     @Published public var index: Int = 0
 
@@ -84,6 +90,7 @@ public class Deck<Element: Identifiable>: ObservableObject {
 
     public func swipe(to direction: Direction, id: Element.ID) {
         withAnimation(.interactiveSpring(response: 0.6, dampingFraction: 0.67, blendDuration: 0.8)) {
+            self.properties[id]?.direction = direction
             self.properties[id]?.offset = CGSize(
                 width: direction.destination.x,
                 height: direction.destination.y
@@ -93,53 +100,62 @@ public class Deck<Element: Identifiable>: ObservableObject {
         withAnimation {
             self.index += 1
         }
-
         onJudged?(id, direction)
     }
 
     public func cancel(id: Element.ID) {
         withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
+            self.properties[id]?.direction = .none
             self.properties[id]?.offset = .zero
             self.properties[id]?.angle = .zero
         }
     }
 
-    public func back(id: Element.ID) {
-        withAnimation(.interactiveSpring(response: 0.38, dampingFraction: 0.78, blendDuration: 0.8)) {
-            self.properties[id]?.offset = .zero
-            self.properties[id]?.angle = .zero
-        }
+    public func reject(id: Element.ID) {
+        cancel(id: id)
         withAnimation {
             self.index -= 1
         }
     }
+
+    public func back(id: Element.ID) {
+        let direction = self.properties[id]?.direction
+        cancel(id: id)
+        withAnimation {
+            self.index -= 1
+        }
+        guard let direction = direction else { return }
+        onBack?(id, direction)
+    }
 }
 
-public struct DeckDragGesture {
+public struct DeckDragGesture<ID: Hashable> {
 
-    var onChangeHandler: ((DeckDragGestureState) -> Void)?
+    var onChangeHandler: ((DeckDragGestureState<ID>) -> Void)?
 
-    var onEndHandler: ((DeckDragGestureState) -> Void)?
+    var onEndHandler: ((DeckDragGestureState<ID>) -> Void)?
 
     public init(
-        onChange: ( (DeckDragGestureState) -> Void)? = nil,
-        onEnd: ( (DeckDragGestureState) -> Void)? = nil
+        onChange: ( (DeckDragGestureState<ID>) -> Void)? = nil,
+        onEnd: ( (DeckDragGestureState<ID>) -> Void)? = nil
     ) {
         self.onChangeHandler = onChange
         self.onEndHandler = onEnd
     }
 
-    public func onChange(handler: @escaping (DeckDragGestureState) -> Void) -> Self {
+    public func onChange(handler: @escaping (DeckDragGestureState<ID>) -> Void) -> Self {
         return DeckDragGesture(onChange: handler, onEnd: self.onEndHandler)
     }
 
-    public func onEnd(handler: @escaping (DeckDragGestureState) -> Void) -> Self {
+    public func onEnd(handler: @escaping (DeckDragGestureState<ID>) -> Void) -> Self {
         return DeckDragGesture(onChange: self.onChangeHandler, onEnd: handler)
     }
 
 }
 
-public struct DeckDragGestureState {
+public struct DeckDragGestureState<ID: Hashable> {
+
+    public var id: ID
 
     public var direction: Direction
 
@@ -156,6 +172,7 @@ public struct DeckDragGestureState {
     public var isJudged: Bool { progress == 1 || estimateProgress == 1 }
 
     public init (
+        id: ID,
         direction: Direction = .none,
         progress: CGFloat = 0,
         estimateProgress: CGFloat = 0,
@@ -163,6 +180,7 @@ public struct DeckDragGestureState {
         offset: CGSize = .zero,
         angle: Angle = .zero
     ) {
+        self.id = id
         self.direction = direction
         self.progress = progress
         self.estimateProgress = estimateProgress

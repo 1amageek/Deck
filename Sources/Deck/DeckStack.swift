@@ -106,13 +106,18 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
         }
     }
 
-    public func onGesture(_ gesture: DeckDragGesture) -> Self {
+    public func onGesture(_ gesture: DeckDragGesture<Element.ID>) -> Self {
         self.deck.dragGesture = gesture
         return self
     }
 
     public func onJudged(perform: @escaping (Element.ID, Direction) -> Void) -> Self {
         self.deck.onJudged = perform
+        return self
+    }
+
+    public func onBack(perform: @escaping (Element.ID, Direction) -> Void) -> Self {
+        self.deck.onBack = perform
         return self
     }
 
@@ -161,13 +166,14 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
             return min(predictedEndTranslationAbs / option.judgmentThreshold, 1.0)
         }
 
-        private func getGestureState(from value: DragGesture.Value) -> DeckDragGestureState {
+        private func getGestureState(from value: DragGesture.Value) -> DeckDragGestureState<Element.ID> {
             let direction: Direction = self.direction(from: value.translation)
             let progress: CGFloat = self.progress(from: value.translation)
             let estimateProgress: CGFloat = self.estimateProgress(from: value.predictedEndTranslation)
             let offset = value.translation
             let angle = Angle(degrees: Double(min(value.translation.width / option.judgmentThreshold, 1.0)) * option.maximumRotationOfCard)
             return DeckDragGestureState(
+                id: id,
                 direction: direction,
                 progress: progress,
                 estimateProgress: estimateProgress,
@@ -199,18 +205,21 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
                         let gestureState: DeckDragGestureState = self.getGestureState(from: value)
                         if gestureState.direction == .none {
                             withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
+                                self.deck.properties[id]?.direction = .none
                                 self.deck.properties[id]?.offset = .zero
                                 self.deck.properties[id]?.angle = .zero
                             }
-                            self.deck.dragGesture?.onEndHandler?(gestureState)
                             return
                         }
-                        if gestureState.isJudged {
-                            deck.swipe(to: gestureState.direction, id: id)
+                        if let handler = self.deck.dragGesture?.onEndHandler {
+                            handler(gestureState)
                         } else {
-                            deck.cancel(id: id)
+                            if gestureState.isJudged {
+                                deck.swipe(to: gestureState.direction, id: id)
+                            } else {
+                                deck.cancel(id: id)
+                            }
                         }
-                        self.deck.dragGesture?.onEndHandler?(gestureState)
                     })
             )
         }
