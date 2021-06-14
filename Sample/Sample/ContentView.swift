@@ -36,6 +36,26 @@ class PointController: ObservableObject {
     @Published var superlikePoint: Int = 1
 }
 
+struct Card: View {
+
+    var data: Data
+
+    var body: some View {
+        Text("card")
+    }
+}
+
+struct SimpleExample: View {
+
+    @ObservedObject var deck: Deck = Deck((0..<100).map { Data(id: "\($0)") })
+
+    var body: some View {
+        DeckStack(deck, option: .allowed(directions: [.left, .top, .right]) ) { data, targetID in
+            Card(data: data)
+        }
+    }
+}
+
 struct ContentView: View {
 
     @ObservedObject var deck: Deck = Deck((0..<100).map { Data(id: "\($0)") })
@@ -166,7 +186,7 @@ struct ContentView: View {
 
                 }
                 .onBack { id, direction in
-                    
+
                     if direction == .right {
                         self.pointController.likePoint += 1
                         return
