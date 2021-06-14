@@ -12,7 +12,7 @@ struct Data: Identifiable {
 
     var id: String
 
-    init(id: String = UUID().uuidString) {
+    init(id: String) {
         self.id = id
     }
 }
@@ -36,29 +36,9 @@ class PointController: ObservableObject {
     @Published var superlikePoint: Int = 1
 }
 
-struct Card: View {
-
-    var data: Data
-
-    var body: some View {
-        Text("card")
-    }
-}
-
-struct SimpleExample: View {
-
-    @ObservedObject var deck: Deck = Deck((0..<100).map { Data(id: "\($0)") })
-
-    var body: some View {
-        DeckStack(deck, option: .allowed(directions: [.left, .top, .right]) ) { data, targetID in
-            Card(data: data)
-        }
-    }
-}
-
 struct ContentView: View {
 
-    @ObservedObject var deck: Deck = Deck((0..<100).map { Data(id: "\($0)") })
+    @ObservedObject var deck: Deck = Deck((0..<10).map { Data(id: "\($0)") })
 
     @StateObject var pointController: PointController = PointController()
 
@@ -280,6 +260,22 @@ struct ContentView: View {
                             })
                             .padding(12)
                         )
+
+                    Circle()
+                        .stroke(Color.gray, lineWidth: 1)
+                        .foregroundColor(.white)
+                        .overlay(
+                            Button(action: {
+                                deck.data = (2..<40).map { Data(id: "\($0)") }
+                            }, label: {
+                                Image(systemName: "square.and.arrow.down")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundColor(.gray)
+                            })
+                            .padding(12)
+                        )
+                    
                 }
                 .frame(width: 50, height: 50, alignment: .center)
             }
