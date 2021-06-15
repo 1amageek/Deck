@@ -85,28 +85,23 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
     }
 
     private var visibleStackData: [Element] {
-        let start = max(deck.index - 1, 0)
-        guard deck.data.count > start else {
+        guard let index = deck.data.firstIndex(where: { $0.id == deck.targetID }) else {
+            return []
+        }
+        let start = max(index - 1, 0)
+        guard start <= deck.data.count - 1 else {
             return []
         }
         let end = min(start + option.numberOfVisibleCards, deck.data.count - 1)
-        return Array(deck.data[start..<end].reversed())
-    }
-
-    private var targetID: Element.ID? {
-        if deck.index < deck.data.count - 1 {
-            return deck.data[deck.index].id
-        }
-        return nil
+        return Array(deck.data[start...end].reversed())
     }
 
     public var body: some View {
         ZStack {
             ForEach(visibleStackData, id: \.id) { data in
                 DeckStackWrapperView(id: data.id, option: option) {
-                    content(data, targetID)
+                    content(data, deck.targetID)
                 }
-                .zIndex(Double(visibleStackData.firstIndex(where: { $0.id == data.id }) ?? 0))
                 .environmentObject(deck)
             }
         }

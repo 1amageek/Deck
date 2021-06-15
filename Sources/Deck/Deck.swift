@@ -64,25 +64,58 @@ public enum Direction: Int {
     }
 }
 
-
 public class Deck<Element: Identifiable>: ObservableObject {
 
     public var data: [Element] {
         didSet(oldValue) {
             let difference = data.difference(from: oldValue) {  $0.id == $1.id  }
             for change in difference {
-              switch change {
-              case let .remove(_, element, _):
-                if let index = self.properties.firstIndex(where: { $0.key == element.id }) {
-                    self.properties.remove(at: index)
+                switch change {
+                    case let .remove(_, element, _):
+                        if let index = self.properties.firstIndex(where: { $0.key == element.id }) {
+                            self.properties.remove(at: index)
+                        }
+                    case let .insert(_, newElement, _):
+                        if !self.properties.contains(where: { $0.key == newElement.id }) {
+                            self.properties[newElement.id] = CardProperty()
+                        }
                 }
-              case let .insert(_, newElement, _):
-                if !self.properties.contains(where: { $0.key == newElement.id }) {
-                    self.properties[newElement.id] = CardProperty()
+            }
+
+            if let targetID = self.targetID {
+                if !self.data.contains(where: { $0.id == targetID }) {
+                    self.targetID = self.data.first?.id
                 }
-              }
+            } else {
+                self.targetID = self.data.first?.id
             }
         }
+    }
+
+    @Published public var targetID: Element.ID?
+
+    @Published var properties: [Element.ID: CardProperty]
+
+    public func nextID(_ currentID: Element.ID?) -> Element.ID? {
+        guard let index = self.data.firstIndex(where: { $0.id == currentID }) else {
+            return nil
+        }
+        let nextIndex = index + 1
+        guard nextIndex <= self.data.count - 1 else {
+            return nil
+        }
+        return self.data[nextIndex].id
+    }
+
+    public func previousID(_ currentID: Element.ID?) -> Element.ID? {
+        guard let index = self.data.firstIndex(where: { $0.id == currentID }) else {
+            return self.data.last?.id
+        }
+        let previousIndex = index - 1
+        guard 0 <= previousIndex else {
+            return nil
+        }
+        return self.data[previousIndex].id
     }
 
     var dragGesture: DeckDragGesture<Element.ID>?
@@ -91,10 +124,6 @@ public class Deck<Element: Identifiable>: ObservableObject {
 
     var onBack: ((Element.ID, Direction) -> Void)?
 
-    @Published public var index: Int = 0
-
-    @Published var properties: [Element.ID: CardProperty]
-
     public init(_ data: [Element]) {
         self.data = data
         self.properties = data.reduce([:], { prev, current in
@@ -102,6 +131,7 @@ public class Deck<Element: Identifiable>: ObservableObject {
             dict[current.id] = CardProperty()
             return dict
         })
+        self.targetID = data.first?.id
     }
 
     public func swipe(to direction: Direction, id: Element.ID) {
@@ -114,7 +144,7 @@ public class Deck<Element: Identifiable>: ObservableObject {
             self.properties[id]?.angle = direction.angle
         }
         withAnimation {
-            self.index += 1
+            self.targetID = nextID(id)
         }
         onJudged?(id, direction)
     }
@@ -130,15 +160,15 @@ public class Deck<Element: Identifiable>: ObservableObject {
     public func reject(id: Element.ID) {
         cancel(id: id)
         withAnimation {
-            self.index -= 1
+            self.targetID = id
         }
     }
 
-    public func back(id: Element.ID) {
+    public func back(to id: Element.ID) {
         let direction = self.properties[id]?.direction
         cancel(id: id)
         withAnimation {
-            self.index -= 1
+            self.targetID = id
         }
         guard let direction = direction else { return }
         onBack?(id, direction)

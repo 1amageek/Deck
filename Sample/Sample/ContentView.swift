@@ -31,9 +31,9 @@ extension Direction {
 
 class PointController: ObservableObject {
 
-    @Published var likePoint: Int = 10
+    @Published var likePoint: Int = 20
 
-    @Published var superlikePoint: Int = 1
+    @Published var superlikePoint: Int = 5
 }
 
 struct ContentView: View {
@@ -50,16 +50,8 @@ struct ContentView: View {
 
     var direction: Direction { gestureState?.direction ?? .none }
 
-    func showShadow(targetID: Data.ID?, data: Data) -> Bool {
-        if targetID == data.id {
-            return true
-        }
-        if deck.index < deck.data.count - 2 {
-            if deck.data[deck.index + 1].id == data.id {
-                return true
-            }
-        }
-        return false
+    func showShadow(data: Data) -> Bool {
+        return data.id == deck.targetID || data.id == deck.nextID(deck.targetID) || data.id == deck.previousID(deck.targetID)
     }
 
     func scale(targetID: Data.ID?, data: Data) -> CGFloat {
@@ -104,7 +96,7 @@ struct ContentView: View {
                     .background(Color.white)
                     .cornerRadius(8)
                     .clipped()
-                    .shadow(color: Color.black.opacity(0.18), radius: showShadow(targetID: targetID, data: data) ? 2 : 0, x: 0.0, y: 0.0)
+                    .shadow(color: Color.black.opacity(0.18), radius: showShadow(data: data) ? 2 : 0, x: 0.0, y: 0.0)
                     .scaleEffect(scale(targetID: targetID, data: data))
                     .padding(8)
                     .onTapGesture {
@@ -204,9 +196,8 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .overlay(
                             Button(action: {
-                                if deck.index > 0 {
-                                    deck.back(id: deck.data[deck.index - 1].id)
-                                }
+                                guard let targetID = self.deck.previousID(deck.targetID) else { return }
+                                deck.back(to: targetID)
                             }, label: {
                                 Image(systemName: "arrow.turn.up.right")
                                     .resizable()
@@ -221,7 +212,8 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .overlay(
                             Button(action: {
-                                deck.swipe(to: .left, id: deck.data[deck.index].id)
+                                guard let targetID = self.deck.targetID else { return }
+                                deck.swipe(to: .left, id: targetID)
                             }, label: {
                                 Image(systemName: "xmark")
                                     .resizable()
@@ -236,7 +228,8 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .overlay(
                             Button(action: {
-                                deck.swipe(to: .top, id: deck.data[deck.index].id)
+                                guard let targetID = self.deck.targetID else { return }
+                                deck.swipe(to: .top, id: targetID)
                             }, label: {
                                 Image(systemName: "star.fill")
                                     .resizable()
@@ -251,7 +244,8 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .overlay(
                             Button(action: {
-                                deck.swipe(to: .right, id: deck.data[deck.index].id)
+                                guard let targetID = self.deck.targetID else { return }
+                                deck.swipe(to: .right, id: targetID)
                             }, label: {
                                 Image(systemName: "heart.fill")
                                     .resizable()
@@ -266,7 +260,7 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .overlay(
                             Button(action: {
-                                deck.data = (2..<40).map { Data(id: "\($0)") }
+                                deck.data = (4..<10).map { Data(id: "\($0)") }
                             }, label: {
                                 Image(systemName: "square.and.arrow.down")
                                     .resizable()
