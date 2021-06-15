@@ -38,7 +38,12 @@ class PointController: ObservableObject {
 
 struct ContentView: View {
 
-    @ObservedObject var deck: Deck = Deck((0..<10).map { Data(id: "\($0)") })
+    @ObservedObject var deck: Deck = Deck([
+                                            "😀","😃","😄","😆","😅","😂",
+                                            "🤣","🥲","☺️","😊","😇","🙂",
+                                            "🙃","😉","😌","😍","🥰","😘",
+                                            "😗","😙","😚","😋","😛","😝",
+                                            "😜","🤪"].map { Data(id: "\($0)") })
 
     @StateObject var pointController: PointController = PointController()
 
@@ -72,9 +77,14 @@ struct ContentView: View {
                 DeckStack(deck, option: .allowed(directions: [.left, .top, .right]) ) { data, targetID in
                     ZStack {
 
+                        Text("\(data.id)")
+                            .font(.system(size: 350))
+                            .foregroundColor(Color.blue)
+
                         if gestureState?.id == data.id {
                             VStack {
                                 Text("\(direction.label.uppercased())")
+                                    .font(.system(size: 35))
                                     .foregroundColor(direction.color)
                                     .bold()
                                     .padding(8)
@@ -85,11 +95,9 @@ struct ContentView: View {
                                     .opacity(Double(progress))
                                 Spacer()
                             }
-                            .frame(height: 200)
+                            .frame(maxHeight: .infinity)
+                            .padding(40)
                         }
-
-                        Text("\(data.id)")
-                            .foregroundColor(Color.blue)
 
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -170,6 +178,7 @@ struct ContentView: View {
                     }
 
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
                 HStack(spacing: 12) {
                     Spacer()
