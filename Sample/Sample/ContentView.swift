@@ -269,7 +269,9 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .overlay(
                             Button(action: {
-                                deck.data = (4..<10).map { Data(id: "\($0)") }
+                                deck.data = ["😝", "🤪", "😍", "😘", "😂", "🤣",
+                                             "🤩", "🥳", "😏", "😒", "😞", "😕"
+                                ].map { Data(id: "\($0)") }
                             }, label: {
                                 Image(systemName: "square.and.arrow.down")
                                     .resizable()

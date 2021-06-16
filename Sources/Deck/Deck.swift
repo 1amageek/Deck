@@ -15,14 +15,18 @@ public struct CardProperty {
 
     public var angle: Angle
 
+    public var isJudged: Bool
+
     public init(
         direction: Direction = .none,
         offset: CGSize = .zero,
-        angle: Angle = .zero
+        angle: Angle = .zero,
+        isJudged: Bool = false
     ) {
         self.direction = direction
         self.offset = offset
         self.angle = angle
+        self.isJudged = isJudged
     }
 }
 
@@ -85,6 +89,13 @@ public class Deck<Element: Identifiable>: ObservableObject {
             if let targetID = self.targetID {
                 if !self.data.contains(where: { $0.id == targetID }) {
                     self.targetID = self.data.first?.id
+                } else {
+                    if let index = self.data.firstIndex(where: { $0.id == targetID }) {
+                        let unjudgedData = self.data[0..<index].filter({ !self.properties[$0.id]!.isJudged })
+                        let newData = Array(self.data[index...(self.data.count - 1)]) + unjudgedData
+                        self.targetID = newData.first?.id
+                        self.data = newData
+                    }
                 }
             } else {
                 self.targetID = self.data.first?.id
@@ -124,7 +135,7 @@ public class Deck<Element: Identifiable>: ObservableObject {
 
     var onBack: ((Element.ID, Direction) -> Void)?
 
-    public init(_ data: [Element]) {
+    public init(_ data: [Element] = []) {
         self.data = data
         self.properties = data.reduce([:], { prev, current in
             var dict = prev
@@ -135,6 +146,7 @@ public class Deck<Element: Identifiable>: ObservableObject {
     }
 
     public func swipe(to direction: Direction, id: Element.ID) {
+        self.properties[id]?.isJudged = true
         withAnimation(.interactiveSpring(response: 0.6, dampingFraction: 0.67, blendDuration: 0.8)) {
             self.properties[id]?.direction = direction
             self.properties[id]?.offset = CGSize(

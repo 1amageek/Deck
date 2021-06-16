@@ -102,9 +102,9 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
                 DeckStackWrapperView(id: data.id, option: option) {
                     content(data, deck.targetID)
                 }
-                .environmentObject(deck)
             }
         }
+        .environmentObject(deck)
     }
 
     public func onGesture(_ gesture: DeckDragGesture<Element.ID>) -> Self {
@@ -189,40 +189,38 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
         var angle: Angle { deck.properties[id]?.angle ?? .zero }
 
         var body: some View {
-            Group {
-                content()
-                    .offset(offset)
-                    .rotationEffect(angle)
-            }
-            .gesture(
-                DragGesture()
-                    .onChanged({ value in
-                        let gestureState: DeckDragGestureState = self.getGestureState(from: value)
-                        self.deck.properties[id]?.offset = gestureState.translation
-                        self.deck.properties[id]?.angle = gestureState.angle
-                        self.deck.dragGesture?.onChangeHandler?(gestureState)
-                    })
-                    .onEnded({ value in
-                        let gestureState: DeckDragGestureState = self.getGestureState(from: value)
-                        if gestureState.direction == .none {
-                            withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
-                                self.deck.properties[id]?.direction = .none
-                                self.deck.properties[id]?.offset = .zero
-                                self.deck.properties[id]?.angle = .zero
+            content()
+                .offset(offset)
+                .rotationEffect(angle)
+                .gesture(
+                    DragGesture()
+                        .onChanged({ value in
+                            let gestureState: DeckDragGestureState = self.getGestureState(from: value)
+                            self.deck.properties[id]?.offset = gestureState.translation
+                            self.deck.properties[id]?.angle = gestureState.angle
+                            self.deck.dragGesture?.onChangeHandler?(gestureState)
+                        })
+                        .onEnded({ value in
+                            let gestureState: DeckDragGestureState = self.getGestureState(from: value)
+                            if gestureState.direction == .none {
+                                withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
+                                    self.deck.properties[id]?.direction = .none
+                                    self.deck.properties[id]?.offset = .zero
+                                    self.deck.properties[id]?.angle = .zero
+                                }
+                                return
                             }
-                            return
-                        }
-                        if let handler = self.deck.dragGesture?.onEndHandler {
-                            handler(gestureState)
-                        } else {
-                            if gestureState.isJudged {
-                                deck.swipe(to: gestureState.direction, id: id)
+                            if let handler = self.deck.dragGesture?.onEndHandler {
+                                handler(gestureState)
                             } else {
-                                deck.cancel(id: id)
+                                if gestureState.isJudged {
+                                    deck.swipe(to: gestureState.direction, id: id)
+                                } else {
+                                    deck.cancel(id: id)
+                                }
                             }
-                        }
-                    })
-            )
+                        })
+                )
         }
     }
 
