@@ -96,6 +96,8 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
         return Array(deck.data[start...end].reversed())
     }
 
+    @State var size: CGSize = CGSize(width: 100, height: CGFloat.infinity)
+
     public var body: some View {
         ZStack {
             ForEach(visibleStackData, id: \.id) { data in
@@ -104,6 +106,7 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .environmentObject(deck)
     }
 
@@ -188,39 +191,41 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
 
         var angle: Angle { deck.properties[id]?.angle ?? .zero }
 
+        var dragGesture: some Gesture {
+            DragGesture(minimumDistance: 0)
+                .onChanged({ value in
+                    let gestureState: DeckDragGestureState = self.getGestureState(from: value)
+                    self.deck.properties[id]?.offset = gestureState.translation
+                    self.deck.properties[id]?.angle = gestureState.angle
+                    self.deck.dragGesture?.onChangeHandler?(gestureState)
+                })
+                .onEnded({ value in
+                    let gestureState: DeckDragGestureState = self.getGestureState(from: value)
+                    if gestureState.direction == .none {
+                        withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
+                            self.deck.properties[id]?.direction = .none
+                            self.deck.properties[id]?.offset = .zero
+                            self.deck.properties[id]?.angle = .zero
+                        }
+                        return
+                    }
+                    if let handler = self.deck.dragGesture?.onEndHandler {
+                        handler(gestureState)
+                    } else {
+                        if gestureState.isJudged {
+                            deck.swipe(to: gestureState.direction, id: id)
+                        } else {
+                            deck.cancel(id: id)
+                        }
+                    }
+                })
+        }
+
         var body: some View {
             content()
                 .offset(offset)
                 .rotationEffect(angle)
-                .gesture(
-                    DragGesture()
-                        .onChanged({ value in
-                            let gestureState: DeckDragGestureState = self.getGestureState(from: value)
-                            self.deck.properties[id]?.offset = gestureState.translation
-                            self.deck.properties[id]?.angle = gestureState.angle
-                            self.deck.dragGesture?.onChangeHandler?(gestureState)
-                        })
-                        .onEnded({ value in
-                            let gestureState: DeckDragGestureState = self.getGestureState(from: value)
-                            if gestureState.direction == .none {
-                                withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
-                                    self.deck.properties[id]?.direction = .none
-                                    self.deck.properties[id]?.offset = .zero
-                                    self.deck.properties[id]?.angle = .zero
-                                }
-                                return
-                            }
-                            if let handler = self.deck.dragGesture?.onEndHandler {
-                                handler(gestureState)
-                            } else {
-                                if gestureState.isJudged {
-                                    deck.swipe(to: gestureState.direction, id: id)
-                                } else {
-                                    deck.cancel(id: id)
-                                }
-                            }
-                        })
-                )
+                .simultaneousGesture(dragGesture)
         }
     }
 
