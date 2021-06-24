@@ -84,7 +84,7 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
         self.content = content
     }
 
-    private var visibleStackData: [Element] {
+    private var visibleCards: [Element] {
         guard let index = deck.data.firstIndex(where: { $0.id == deck.targetID }) else {
             return []
         }
@@ -100,7 +100,7 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
 
     public var body: some View {
         ZStack {
-            ForEach(visibleStackData, id: \.id) { data in
+            ForEach(visibleCards, id: \.id) { data in
                 DeckStackWrapperView(id: data.id, option: option) {
                     content(data, deck.targetID)
                 }

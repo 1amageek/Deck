@@ -7,7 +7,9 @@
 
 import SwiftUI
 
-public struct CardProperty {
+public struct CardProperty<ID: Hashable>: Identifiable {
+
+    public var id: ID
 
     public var direction: Direction
 
@@ -18,11 +20,13 @@ public struct CardProperty {
     public var isJudged: Bool
 
     public init(
+        id: ID,
         direction: Direction = .none,
         offset: CGSize = .zero,
         angle: Angle = .zero,
         isJudged: Bool = false
     ) {
+        self.id = id
         self.direction = direction
         self.offset = offset
         self.angle = angle
@@ -50,10 +54,10 @@ public enum Direction: Int {
     var destination: CGPoint {
         switch self {
             case .none: return CGPoint.zero
-            case .left: return CGPoint(x: -UIScreen.main.bounds.width * 2, y: 0)
-            case .top: return CGPoint(x: 0, y: -UIScreen.main.bounds.height * 2)
-            case .right: return CGPoint(x: UIScreen.main.bounds.width * 2, y: 0)
-            case .bottom: return CGPoint(x: 0, y: UIScreen.main.bounds.height * 2)
+            case .left: return CGPoint(x: -UIScreen.main.bounds.width * 1.5, y: 0)
+            case .top: return CGPoint(x: 0, y: -UIScreen.main.bounds.height * 1.5)
+            case .right: return CGPoint(x: UIScreen.main.bounds.width * 1.5, y: 0)
+            case .bottom: return CGPoint(x: 0, y: UIScreen.main.bounds.height * 1.5)
         }
     }
 
@@ -76,12 +80,10 @@ public class Deck<Element: Identifiable>: ObservableObject {
             for change in difference {
                 switch change {
                     case let .remove(_, element, _):
-                        if let index = self.properties.firstIndex(where: { $0.key == element.id }) {
-                            self.properties.remove(at: index)
-                        }
+                        self.properties[element.id] = nil
                     case let .insert(_, newElement, _):
-                        if !self.properties.contains(where: { $0.key == newElement.id }) {
-                            self.properties[newElement.id] = CardProperty()
+                        if !self.properties.contains(where: { $0.id == newElement.id }) {
+                            self.properties[newElement.id] = CardProperty(id: newElement.id)
                         }
                 }
             }
@@ -105,7 +107,7 @@ public class Deck<Element: Identifiable>: ObservableObject {
 
     @Published public var targetID: Element.ID?
 
-    @Published var properties: [Element.ID: CardProperty]
+    @Published var properties: [CardProperty<Element.ID>]
 
     public func nextID(_ currentID: Element.ID?) -> Element.ID? {
         guard let index = self.data.firstIndex(where: { $0.id == currentID }) else {
@@ -137,17 +139,13 @@ public class Deck<Element: Identifiable>: ObservableObject {
 
     public init(_ data: [Element] = []) {
         self.data = data
-        self.properties = data.reduce([:], { prev, current in
-            var dict = prev
-            dict[current.id] = CardProperty()
-            return dict
-        })
+        self.properties = data.map { CardProperty(id: $0.id) }
         self.targetID = data.first?.id
     }
 
     public func swipe(to direction: Direction, id: Element.ID) {
         self.properties[id]?.isJudged = true
-        withAnimation(.interactiveSpring(response: 0.6, dampingFraction: 0.67, blendDuration: 0.8)) {
+        withAnimation(.interactiveSpring(response: 0.78, dampingFraction: 0.67, blendDuration: 0.4)) {
             self.properties[id]?.direction = direction
             self.properties[id]?.offset = CGSize(
                 width: direction.destination.x,
@@ -162,7 +160,7 @@ public class Deck<Element: Identifiable>: ObservableObject {
     }
 
     public func cancel(id: Element.ID) {
-        withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.67, blendDuration: 0.8)) {
+        withAnimation(.interactiveSpring(response: 0.38, dampingFraction: 0.67, blendDuration: 0.4)) {
             self.properties[id]?.direction = .none
             self.properties[id]?.offset = .zero
             self.properties[id]?.angle = .zero
