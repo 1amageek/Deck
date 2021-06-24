@@ -282,22 +282,6 @@ struct ContentView: View {
                                 .padding(12)
                             )
 
-                        Circle()
-                            .stroke(Color.green, lineWidth: 1)
-                            .foregroundColor(.white)
-                            .overlay(
-                                Button(action: {
-                                    guard let targetID = self.deck.targetID else { return }
-                                    deck.swipe(to: .right, id: targetID)
-                                }, label: {
-                                    Image(systemName: "heart.fill")
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundColor(.green)
-                                })
-                                .padding(12)
-                            )
-
                     }
                     .frame(width: 50, height: 50, alignment: .center)
                 }
