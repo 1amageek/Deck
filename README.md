@@ -3,6 +3,7 @@
 Deck is a library that provides a UI to reproduce stacked cards for SwiftUI.
 
 
+<img src="https://user-images.githubusercontent.com/11146538/123254322-7b10b500-d529-11eb-96f6-9614dd4a2c80.png" width="280px" />
 
 https://user-images.githubusercontent.com/11146538/123250840-7e09a680-d525-11eb-94e6-19fe96272ec6.mov
 
