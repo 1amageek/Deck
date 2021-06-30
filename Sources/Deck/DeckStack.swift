@@ -226,6 +226,7 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
                 .offset(offset)
                 .rotationEffect(angle)
                 .simultaneousGesture(dragGesture)
+                .allowsHitTesting(!(deck.properties[self.id]?.isJudged ?? false))
         }
     }
 
