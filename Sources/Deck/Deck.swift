@@ -176,6 +176,7 @@ public class Deck<Element: Identifiable>: ObservableObject {
 
     public func back(to id: Element.ID) {
         let direction = self.properties[id]?.direction
+        self.properties[id]?.isJudged = false
         cancel(id: id)
         withAnimation {
             self.targetID = id

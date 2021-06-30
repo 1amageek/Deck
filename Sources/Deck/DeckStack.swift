@@ -190,6 +190,8 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
         var offset: CGSize { deck.properties[id]?.offset ?? .zero }
 
         var angle: Angle { deck.properties[id]?.angle ?? .zero }
+        
+        var isJudged: Bool { deck.properties[id]?.isJudged ?? false }
 
         var dragGesture: some Gesture {
             DragGesture(minimumDistance: 0)
@@ -226,6 +228,7 @@ public struct DeckStack<Element: Identifiable, Content: View>: View {
                 .offset(offset)
                 .rotationEffect(angle)
                 .simultaneousGesture(dragGesture)
+                .allowsHitTesting(!isJudged)
         }
     }
 
