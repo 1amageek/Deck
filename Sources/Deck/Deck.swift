@@ -83,7 +83,7 @@ public class Deck<Element: Identifiable>: ObservableObject {
                         self.properties[element.id] = nil
                     case let .insert(_, newElement, _):
                         if !self.properties.contains(where: { $0.id == newElement.id }) {
-                            self.properties[newElement.id] = CardProperty(id: newElement.id)
+                            self.properties.append(CardProperty(id: newElement.id))
                         }
                 }
             }
